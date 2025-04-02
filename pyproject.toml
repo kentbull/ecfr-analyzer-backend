@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=75.8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "platform"
+version = "1.0.0"
+authors = [{name = "Kent Bull", email = "kent@kentbull.com"}]
+description = "eCFR Analysis and Reporting Backend"
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    'License :: OSI Approved :: Apache Software License',
+    "Operating System :: OS Independent"
+]
+
+dependencies = [
+    "asyncpg==0.30.0",
+    "cython==3.0.12",
+    "falcon==4.0.2",
+    "httpx==0.28.1",
+    "hypercorn==0.17.3",
+    "lxml>=5.3.1",
+    "sqlalchemy[asyncio]==2.0.40",
+    "uvloop==0.21.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/kentbull/ecfr-analyzer-backend"
+
+[tool.uv]
+dev-dependencies = [
+    "ruff>=0.9.7",
+    "pytest==8.0.1",
+    "pytest-asyncio==0.23.5",
+    "pytest-cov==4.1.0"
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [ "tests" ]
+
+[tool.setuptools]
+packages = ["ecfr"]
