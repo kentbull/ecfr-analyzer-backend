@@ -17,7 +17,9 @@ class TitleService:
     """
     TitleService is responsible for retrieving and caching titles and sections from the eCFR API.
     """
+
     TITLES_KEY = "titles"
+
     def __init__(self, client: httpx.AsyncClient, cache: shelve.Shelf):
         self.client: httpx.AsyncClient = client
         self.cache: shelve.Shelf = cache
@@ -34,9 +36,13 @@ class TitleService:
                     f"{urls.VRSN_URL}/versions/title-{title}.json"
                 )
                 if versions_resp.status_code != 200:
-                    logger.error(f"Failed to retrieve versions for title {title}: {versions_resp.status_code}")
-                    return {"error": f"Title {title} not found or rate limited",
-                            "status_code": versions_resp.status_code}
+                    logger.error(
+                        f"Failed to retrieve versions for title {title}: {versions_resp.status_code}"
+                    )
+                    return {
+                        "error": f"Title {title} not found or rate limited",
+                        "status_code": versions_resp.status_code,
+                    }
 
                 versions_json = versions_resp.json()
                 versions = versions_json["content_versions"]
@@ -67,9 +73,13 @@ class TitleService:
                 f"{urls.VRSN_URL}/versions/title-{title}.json"
             )
             if versions_resp.status_code != 200:
-                logger.error(f"Failed to retrieve versions for title {title}: {versions_resp.status_code}")
-                return {"error": f"Title {title} not found or rate limited",
-                        "status_code": versions_resp.status_code}
+                logger.error(
+                    f"Failed to retrieve versions for title {title}: {versions_resp.status_code}"
+                )
+                return {
+                    "error": f"Title {title} not found or rate limited",
+                    "status_code": versions_resp.status_code,
+                }
 
             versions_json = versions_resp.json()
             versions = versions_json["content_versions"]
@@ -80,7 +90,7 @@ class TitleService:
             return self.cache[title]
 
     def check_version_cache(self, title, versions):
-        """"
+        """
         Check version cache for each section in the title and return False if it does not exist
         and needs to be retrieved.
         """
@@ -110,10 +120,16 @@ class TitleService:
             content_xml = self.cache[key]
         else:
             logger.info(f"Cache miss for {key}")
-            response = await self.client.get(f"{urls.VRSN_URL}/full/{TITLE_DATE}/title-{title}.xml")
+            response = await self.client.get(
+                f"{urls.VRSN_URL}/full/{TITLE_DATE}/title-{title}.xml"
+            )
             if response.status_code != 200:
-                return {"error": f"Title {title} not found or rate limited",
-                        "status_code": response.status_code}
+                return {
+                    "title": title,
+                    "word_count": 0,
+                    "error": f"Title {title} not found or rate limited",
+                    "status_code": response.status_code,
+                }
             content_xml = response.text
             self.cache[key] = content_xml
         count_key = f"title-word-counts/{title}"
@@ -146,8 +162,12 @@ class TitleService:
         title_word_count = 0
         section_tuples = self.check_version_cache(title, versions)
 
-        section_responses = await asyncio.gather(*[self.get_section(sec_tup) for sec_tup in section_tuples])
-        logger.info(f"Title {title} retrieving counts for {len(section_responses)} sections")
+        section_responses = await asyncio.gather(
+            *[self.get_section(sec_tup) for sec_tup in section_tuples]
+        )
+        logger.info(
+            f"Title {title} retrieving counts for {len(section_responses)} sections"
+        )
         for response in section_responses:
             key, response = response
             if response is None:
@@ -172,11 +192,8 @@ class TitleService:
 
     async def get_counts(self):
         titles = self.cache[self.TITLES_KEY]
-        title_names = [item['number'] for item in titles]
-        return {
-            "title_count": len(title_names),
-            "titles": title_names
-        }
+        title_names = [item["number"] for item in titles]
+        return {"title_count": len(title_names), "titles": title_names}
 
 
 def word_count(xml_str: str) -> int:

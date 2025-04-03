@@ -8,6 +8,7 @@ def nowUTC() -> datetime.datetime:
     """
     return datetime.datetime.now(datetime.timezone.utc)
 
+
 def nowIso8601():
     """
     Returns time now in RFC-3339 profile of ISO 8601 format.

@@ -40,26 +40,29 @@ def _exception_handler(loop, context):
     else:
         loop.default_exception_handler(context)
 
+
 def cors_middleware():
     return falcon.CORSMiddleware(
-                allow_origins="*",
-                allow_credentials="*",
-                expose_headers=[
-                    "accept",
-                    "accept-encoding",
-                    "accept-language",
-                    "authorization",
-                    "origin",
-                    "cesr-attachment",
-                    "cesr-date",
-                    "content-type",
-                ],
-            )
+        allow_origins="*",
+        allow_credentials="*",
+        expose_headers=[
+            "accept",
+            "accept-encoding",
+            "accept-language",
+            "authorization",
+            "origin",
+            "cesr-attachment",
+            "cesr-date",
+            "content-type",
+        ],
+    )
+
 
 def ecfr_app():
     return falcon.asgi.App(
         middleware=[cors_middleware()],
     )
+
 
 def configure_loop(loop: asyncio.AbstractEventLoop, client: httpx.AsyncClient):
     loop.set_debug(False)  # Disable asyncio debug logs
@@ -67,6 +70,7 @@ def configure_loop(loop: asyncio.AbstractEventLoop, client: httpx.AsyncClient):
         loop.add_signal_handler(sig, _shutdown_signal_handler, client, loop)
     loop.set_exception_handler(_exception_handler)
     return loop
+
 
 def configure_hypercorn(port: int):
     config = Config()
@@ -80,6 +84,7 @@ def configure_hypercorn(port: int):
     config.error_logger = logging.getLogger("hypercorn.error")
     config.graceful_timeout = 120
     return config
+
 
 async def start():
     port = os.environ.get("EFCR_PORT", 3001)
@@ -106,8 +111,12 @@ async def start():
             app.add_route("/word-count", endpoints.WordCountResource())
             app.add_route("/titles", endpoints.TitlesResource(title_service))
             app.add_route("/title-counts", endpoints.TitleCountsResource(title_service))
-            app.add_route("/title-counts/{title}", endpoints.TitleCountResource(title_service))
-            app.add_route("/section-counts", endpoints.SectionCountsResource(title_service))
+            app.add_route(
+                "/title-counts/{title}", endpoints.TitleCountResource(title_service)
+            )
+            app.add_route(
+                "/section-counts", endpoints.SectionCountsResource(title_service)
+            )
 
             # Falcon App
             logger.info("Starting ECFR server on port %s", port)

@@ -33,7 +33,7 @@ class WordCountResource:
         r = httpx.get(f"{urls.ADMN_URL}/agencies.json")
         agencies = r.json()["agencies"]
 
-        agency_names = [item['short_name'] for item in agencies]
+        agency_names = [item["short_name"] for item in agencies]
 
         # Count words
         agency_count = len(agency_names)
@@ -41,13 +41,12 @@ class WordCountResource:
         # Prepare the response
         resp.status = falcon.HTTP_OK
         resp.content_type = "application/json"
-        resp.media = {
-            "agency_count": agency_count,
-            "agencies": agency_names
-        }
+        resp.media = {"agency_count": agency_count, "agencies": agency_names}
+
 
 class TitlesResource:
     """Gets and stores all titles and all sections in each title."""
+
     auth = {"auth_disabled": True}
 
     def __init__(self, title_service: TitleService):
@@ -65,6 +64,7 @@ class TitlesResource:
         resp.content_type = "application/json"
         resp.media = await self.title_service.get_counts()
 
+
 async def call_url(url, client: httpx.AsyncClient) -> httpx.Response | None:
     """Call a URL and return the response"""
     response = await client.get(url, timeout=30.00)
@@ -73,8 +73,10 @@ async def call_url(url, client: httpx.AsyncClient) -> httpx.Response | None:
         return None
     return response
 
+
 class TitleCountsResource:
     """Gets word counts for all titles"""
+
     auth = {"auth_disabled": True}
 
     def __init__(self, title_service: TitleService):
@@ -93,8 +95,10 @@ class TitleCountsResource:
         resp.content_type = "application/json"
         resp.media = counts
 
+
 class SectionCountsResource:
     """Gets word counts for all sections"""
+
     auth = {"auth_disabled": True}
 
     def __init__(self, title_service: TitleService):
@@ -107,7 +111,10 @@ class SectionCountsResource:
         titles = [str(title_json["number"]) for title_json in titles_json]
 
         try:
-            counts = [await self.title_service.get_title_word_count_by_sections(title) for title in titles]
+            counts = [
+                await self.title_service.get_title_word_count_by_sections(title)
+                for title in titles
+            ]
         except (httpx.ReadError, RuntimeError):
             logger.error("HTTPX read error while cancelling, shutting down")
             resp.status = falcon.HTTP_INTERNAL_SERVER_ERROR
@@ -118,6 +125,7 @@ class SectionCountsResource:
         resp.status = falcon.HTTP_OK
         resp.content_type = "application/json"
         resp.media = counts
+
 
 class TitleCountResource:
     """Gets word count per title"""
@@ -139,4 +147,3 @@ class TitleCountResource:
         resp.status = falcon.HTTP_OK
         resp.content_type = "application/json"
         resp.media = await self.title_service.get_title_words(title)
-

@@ -2,6 +2,7 @@ import logging
 
 logger = logging.getLogger("ecfr")
 
+
 def log_errors(coro):
     """Decorator to log errors in coroutines."""
 
