@@ -25,6 +25,6 @@ run:
 
 
 push:
-	@echo "pushing image $(IMAGE_TAG)"
+	@echo "pushing image $(IMAGE_TAG) and $(VERSIONED_TAG)"
 	@docker push $(IMAGE_TAG)
-	@docker push $(OCI_IMAGE_TAG)
+	@docker push $(VERSIONED_TAG)
