@@ -1,0 +1,22 @@
+services:
+  api:
+    image: kentbull/ecfr-api:1.0.0
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:8080/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 2s
+    environment:
+      ECFR_PORT: 3001
+      PYTHONUNBUFFERED: 1
+      SERVER_NAME: ecfr-api.protobull.com
+    ports:
+      - "3001:8080"
+  app:
+    image: kentbull/ecfr-web:1.0.0
+    ports:
+    - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy

@@ -37,7 +37,7 @@ COPY container/healthcheck.sh /ecfr/healthcheck.sh
 
 RUN chmod +x main.py
 
-EXPOSE 80
+EXPOSE 8080
 EXPOSE 443
 
 CMD ["/nginx-startup-script.sh"]

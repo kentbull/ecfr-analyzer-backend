@@ -20,7 +20,7 @@ build:
 
 # Requires the .env.docker file to be populated with correct environment variables
 run:
-	@docker run --name ecfr-api -p 3001:80 --rm --env-file .env.docker \
+	@docker run --name ecfr-api -p 3001:8080 --rm --env-file .env.docker \
 		$(IMAGE_TAG)
 
 
