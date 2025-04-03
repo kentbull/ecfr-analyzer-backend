@@ -18,9 +18,9 @@ class TitleService:
     TitleService is responsible for retrieving and caching titles and sections from the eCFR API.
     """
     TITLES_KEY = "titles"
-    def __init__(self, client: httpx.AsyncClient, cache: DbfilenameShelf):
+    def __init__(self, client: httpx.AsyncClient, cache: shelve.Shelf):
         self.client: httpx.AsyncClient = client
-        self.cache: shelve.DbfilenameShelf = cache
+        self.cache: shelve.Shelf = cache
 
     async def populate_title_sections(self):
         """Retrieve all sections from all titles in the eCFR API and store in a local cache"""

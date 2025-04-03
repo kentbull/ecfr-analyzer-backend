@@ -106,7 +106,13 @@ class SectionCountsResource:
         titles_json = await self.title_service.get_titles()
         titles = [str(title_json["number"]) for title_json in titles_json]
 
-        counts = [await self.title_service.get_title_word_count_by_sections(title) for title in titles]
+        try:
+            counts = [await self.title_service.get_title_word_count_by_sections(title) for title in titles]
+        except (httpx.ReadError, RuntimeError):
+            logger.error("HTTPX read error while cancelling, shutting down")
+            resp.status = falcon.HTTP_INTERNAL_SERVER_ERROR
+            resp.media = {"error": "Internal server error"}
+            return
 
         # Prepare the response
         resp.status = falcon.HTTP_OK

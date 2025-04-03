@@ -21,12 +21,15 @@ logger = logging.getLogger("ecfr")
 
 uvloop.install()
 shutdown_event = asyncio.Event()
+client_shutdown_event = asyncio.Event()
 
 CACHE="ecfr_cache"
 
-def _shutdown_signal_handler(*_: Any) -> None:
+def _shutdown_signal_handler(client: httpx.AsyncClient, loop: asyncio.AbstractEventLoop, *_: Any) -> None:
     logger.info("SIGTERM received, shutting down gracefully")
     shutdown_event.set()
+    client_shutdown_event.set()
+    asyncio.ensure_future(client.aclose(), loop=loop)
 
 
 # For reporting SSL errors
@@ -58,10 +61,10 @@ def ecfr_app():
         middleware=[cors_middleware()],
     )
 
-def configure_loop(loop: asyncio.AbstractEventLoop):
+def configure_loop(loop: asyncio.AbstractEventLoop, client: httpx.AsyncClient):
     loop.set_debug(False)  # Disable asyncio debug logs
     for sig in [signal.SIGTERM, signal.SIGINT]:
-        loop.add_signal_handler(sig, _shutdown_signal_handler)
+        loop.add_signal_handler(sig, _shutdown_signal_handler, client, loop)
     loop.set_exception_handler(_exception_handler)
     return loop
 
@@ -83,14 +86,19 @@ async def start():
 
     # Hypercorn config
     config = configure_hypercorn(port)
-    # Configure Hypercorn asyncio event loop
-    configure_loop(asyncio.get_event_loop())
+    loop = asyncio.get_event_loop()
 
-    # Open cache at app level
-    with shelve.open(CACHE) as cache:
-        limits = httpx.Limits(max_connections=1, max_keepalive_connections=1)
-        # Use a common async http client for all requests
-        async with httpx.AsyncClient(http2=False, limits=limits, timeout=30.00) as client:
+    limits = httpx.Limits(max_connections=2, max_keepalive_connections=2)
+    client = httpx.AsyncClient(http2=False, limits=limits, timeout=30.00)
+
+    # Configure Hypercorn asyncio event loop
+    configure_loop(loop, client)
+
+    try:
+        # Open cache at app level
+        with shelve.open(CACHE) as cache:
+            # Use a common async http client for all requests
+
             title_service = endpoints.TitleService(client, cache)
 
             app = ecfr_app()
@@ -104,6 +112,12 @@ async def start():
             # Falcon App
             logger.info("Starting ECFR server on port %s", port)
             await serve(app, config, shutdown_trigger=shutdown_event.wait)
+    except RuntimeError:
+        logger.error("RuntimeError: %s", RuntimeError)
+    finally:
+        if not client.is_closed:
+            await client.aclose()
+            logger.info("Client closed")
 
 
 if __name__ == "__main__":
