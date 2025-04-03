@@ -3,7 +3,8 @@ FROM python:3.12.6-slim AS base
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONFAULTHANDLER=1
+    PYTHONFAULTHANDLER=1 \
+    PATH="/ecfr/.venv/bin:$PATH"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -22,10 +23,8 @@ WORKDIR /ecfr
 COPY . .
 
 # Install dependencies into /.venv
-RUN uv venv /ecfr/.venv && \
-    . /ecfr/.venv/bin/activate && \
-    uv pip install --no-cache-dir .
-
+RUN uv venv && \
+    uv sync
 
 # Add in the configuration files for running (SupervisorD) and NGINX config
 COPY container/supervisord.conf /etc/supervisord.conf
