@@ -85,10 +85,7 @@ class TitleCountsResource:
     @log_errors
     async def on_get(self, req, resp):
         # Read the request body
-        titles_json = await self.title_service.get_titles()
-        titles = [str(title_json["number"]) for title_json in titles_json]
-
-        counts = [await self.title_service.get_title_words(title) for title in titles]
+        counts = await self.title_service.get_title_counts_cached()
 
         # Prepare the response
         resp.status = falcon.HTTP_OK

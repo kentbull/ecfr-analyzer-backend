@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 import shelve
@@ -8,10 +9,12 @@ import httpx
 from lxml import etree
 
 from ecfr import urls
+from main import active_tasks
 
 logger = logging.getLogger("ecfr")
 
-TITLE_DATE="2025-03-31"
+TITLE_DATE = "2025-03-31"
+
 
 class TitleService:
     """
@@ -112,8 +115,69 @@ class TitleService:
             section_tuples.append((version_key, section_url, True))
         return section_tuples
 
+    async def get_title_counts_cached(self, cached=True):
+        """
+        Retrieve word counts for all titles in the eCFR API.
+        Gives a quick response with a sample response if the cache is empty.
+        """
+        first_run_cache_key = "first_run"
+        counts_task_name = "counts_task"
+
+        def get_title_counts_task():
+            for task in active_tasks:
+                if hasattr(task, '_task_name') and task._task_name == counts_task_name and not task.done():
+                    return task
+                return None
+
+        if first_run_cache_key not in self.cache:
+            logger.info("First run, populating cache, giving sample response")
+
+            existing_task = get_title_counts_task()
+            if existing_task:
+                return json.loads(sample_title_counts)
+            else:
+                counts_task = asyncio.create_task(self.get_title_counts())
+                counts_task._task_name = counts_task_name
+                def first_run_done(t):
+                    logger.info("First run done")
+                    self.cache[first_run_cache_key] = True
+                    active_tasks.discard(counts_task)
+                counts_task.add_done_callback(first_run_done)
+                active_tasks.add(counts_task)
+            return json.loads(sample_title_counts)
+
+        existing_task = get_title_counts_task()
+        if existing_task:
+            return json.loads(sample_title_counts)
+        else:
+            logger.info("Cache populated, retrieving title counts")
+            counts_task = asyncio.create_task(self.get_title_counts(cached=cached))
+            counts_task._task_name = counts_task_name
+            active_tasks.add(counts_task)
+            counts = []
+            try:
+                counts = await counts_task
+            except asyncio.CancelledError:
+                logger.info("Task started during shutdown")
+                counts = []
+            finally:
+                return counts
+
+    async def get_title_counts(self, cached=True):
+        """Retrieve word counts for all titles in the eCFR API"""
+        title_counts_key = "title-counts"
+        if title_counts_key in self.cache and cached:
+            logger.info(f"Cache hit for {title_counts_key}")
+            return self.cache[title_counts_key]
+
+        titles_json = await self.get_titles()
+        titles = [item["number"] for item in titles_json]
+        counts = [await self.get_title_words(title) for title in titles]
+        self.cache[title_counts_key] = counts
+        return counts
+
     async def get_title_words(self, title):
-        """Tets word count for a single title"""
+        """Gets word count for a single title"""
         key = f"title-counts/{title}"
         if key in self.cache:
             logger.info(f"Cache hit for {key}")
@@ -202,3 +266,5 @@ def word_count(xml_str: str) -> int:
         t.strip() for elem in doc.iter() for t in (elem.text, elem.tail) if t
     )
     return len(re.findall(r"\w+", text))
+
+sample_title_counts = '[{"title": "1", "word_count": 69393}, {"title": "2", "word_count": 348252}, {"title": "3", "word_count": 4302}, {"title": "4", "word_count": 61581}, {"title": "5", "word_count": 1680516}, {"title": "6", "word_count": 265273}, {"title": "7", "word_count": 5881285}, {"title": "8", "word_count": 847269}, {"title": "9", "word_count": 1078540}, {"title": "10", "word_count": 2840892}, {"title": "11", "word_count": 250982}, {"title": "12", "word_count": 5894224}, {"title": "13", "word_count": 571469}, {"title": "14", "word_count": 2258606}, {"title": "15", "word_count": 1683376}, {"title": "16", "word_count": 977322}, {"title": "17", "word_count": 2537694}, {"title": "18", "word_count": 966321}, {"title": "19", "word_count": 1531979}, {"title": "20", "word_count": 2168518}, {"title": "21", "word_count": 2895151}, {"title": "22", "word_count": 975954}, {"title": "23", "word_count": 478352}, {"title": "24", "word_count": 1853440}, {"title": "25", "word_count": 855655}, {"title": "26", "word_count": 12643620}, {"title": "27", "word_count": 1073965}, {"title": "28", "word_count": 1424714}, {"title": "29", "word_count": 4115346}, {"title": "30", "word_count": 1437827}, {"title": "31", "word_count": 1445677}, {"title": "32", "word_count": 1895172}, {"title": "33", "word_count": 1597596}, {"title": "34", "word_count": 1300934}, {"title": "35", "word_count": 0, "error": "Title 35 not found or rate limited", "status_code": 404}, {"title": "36", "word_count": 1124535}, {"title": "37", "word_count": 672878}, {"title": "38", "word_count": 1341491}, {"title": "39", "word_count": 330609}, {"title": "40", "word_count": 17827071}, {"title": "41", "word_count": 766621}, {"title": "42", "word_count": 3282461}, {"title": "43", "word_count": 1196652}, {"title": "44", "word_count": 344404}, {"title": "45", "word_count": 2205816}, {"title": "46", "word_count": 2048160}, {"title": "47", "word_count": 2480965}, {"title": "48", "word_count": 2799489}, {"title": "49", "word_count": 4288192}, {"title": "50", "word_count": 3940123}]'

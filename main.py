@@ -21,15 +21,25 @@ logger = logging.getLogger("ecfr")
 
 uvloop.install()
 shutdown_event = asyncio.Event()
-client_shutdown_event = asyncio.Event()
 
-CACHE="ecfr_cache"
+CACHE = "ecfr_cache"
 
-def _shutdown_signal_handler(client: httpx.AsyncClient, loop: asyncio.AbstractEventLoop, *_: Any) -> None:
+active_tasks = set()
+
+def _shutdown_signal_handler(
+    client: httpx.AsyncClient, loop: asyncio.AbstractEventLoop, *_: Any
+) -> None:
     logger.info("SIGTERM received, shutting down gracefully")
     shutdown_event.set()
-    client_shutdown_event.set()
-    asyncio.ensure_future(client.aclose(), loop=loop)
+    for task in active_tasks:
+        task.cancel()
+    logger.info(f"Cancelled {len(active_tasks)} tasks")
+    async def close_client():
+        await asyncio.gather(*active_tasks, return_exceptions=True)
+        if not client.is_closed:
+            await client.aclose()
+            logger.info("Client closed after task cancellation")
+    asyncio.ensure_future(close_client(), loop=loop)
 
 
 # For reporting SSL errors
@@ -94,7 +104,7 @@ async def start():
     loop = asyncio.get_event_loop()
 
     limits = httpx.Limits(max_connections=2, max_keepalive_connections=2)
-    client = httpx.AsyncClient(http2=False, limits=limits, timeout=30.00)
+    client = httpx.AsyncClient(http2=False, limits=limits, timeout=45.00)
 
     # Configure Hypercorn asyncio event loop
     configure_loop(loop, client)
@@ -120,7 +130,11 @@ async def start():
 
             # Falcon App
             logger.info("Starting ECFR server on port %s", port)
-            await serve(app, config, shutdown_trigger=shutdown_event.wait)
+            serve_task = asyncio.create_task(serve(app, config, shutdown_trigger=shutdown_event.wait))
+            active_tasks.add(serve_task)
+            await serve_task
+    except asyncio.CancelledError:
+        logger.info("Task started during shutdown")
     except RuntimeError:
         logger.error("RuntimeError: %s", RuntimeError)
     finally:
