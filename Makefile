@@ -3,7 +3,7 @@
 
 VERSION=1.0.0
 REGISTRY=kentbull
-IMAGE=ecfr
+IMAGE=ecfr-api
 IMAGE_TAG=$(REGISTRY)/$(IMAGE):latest
 VERSIONED_TAG=$(REGISTRY)/$(IMAGE):$(VERSION)
 
@@ -20,7 +20,7 @@ build:
 
 # Requires the .env.docker file to be populated with correct environment variables
 run:
-	@docker run --name efcr -p 3001:80 --rm --env-file .env.docker \
+	@docker run --name ecfr-api -p 3001:80 --rm --env-file .env.docker \
 		$(IMAGE_TAG)
 
 
